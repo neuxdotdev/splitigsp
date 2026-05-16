@@ -1,0 +1,92 @@
+name: Build & Release (Dev Mode)
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["v*"] # Release hanya untuk tag versi, misal v0.1.0
+  pull_request:
+    branches: ["main"]
+
+env:
+  CARGO_TERM_COLOR: always
+  # Warning tidak akan membuat build gagal (tidak ada -D warnings)
+  RUSTFLAGS: ""
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies (Linux only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-dev libgtk-3-dev
+
+      - name: Build release binary
+        run: cargo build --release --verbose
+
+      - name: Prepare artifact name
+        id: artifact
+        shell: bash
+        run: |
+          BIN_NAME="slitigs-sp"
+          OS_NAME="${{ runner.os }}"
+          # Ubah ke lowercase
+          OS_NAME=$(echo "$OS_NAME" | tr '[:upper:]' '[:lower:]')
+          EXT=""
+          if [ "${{ runner.os }}" = "Windows" ]; then EXT=".exe"; fi
+          echo "artifact_name=${BIN_NAME}-${OS_NAME}${EXT}" >> $GITHUB_OUTPUT
+
+      - name: Rename binary for upload
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cp target/release/slitigs-sp.exe "${{ steps.artifact.outputs.artifact_name }}"
+          else
+            cp target/release/slitigs-sp "${{ steps.artifact.outputs.artifact_name }}"
+          fi
+
+      - name: Upload artifact (always)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact.outputs.artifact_name }}
+          path: ${{ steps.artifact.outputs.artifact_name }}
+
+  # Job khusus untuk bikin GitHub Release hanya jika ada tag v*
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Generate release name
+        id: release_info
+        run: |
+          echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          echo "name=Slitigs-SP ${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_info.outputs.tag }}
+          name: ${{ steps.release_info.outputs.name }}
+          draft: false
+          prerelease: false
+          files: artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
