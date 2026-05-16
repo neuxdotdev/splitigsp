@@ -40,7 +40,7 @@ jobs:
         id: artifact
         shell: bash
         run: |
-          BIN_NAME="slitigs-sp"
+          BIN_NAME="splitigsp"
           OS_NAME="${{ runner.os }}"
           # Ubah ke lowercase
           OS_NAME=$(echo "$OS_NAME" | tr '[:upper:]' '[:lower:]')
@@ -52,9 +52,9 @@ jobs:
         shell: bash
         run: |
           if [ "${{ runner.os }}" = "Windows" ]; then
-            cp target/release/slitigs-sp.exe "${{ steps.artifact.outputs.artifact_name }}"
+            cp target/release/splitigsp.exe "${{ steps.artifact.outputs.artifact_name }}"
           else
-            cp target/release/slitigs-sp "${{ steps.artifact.outputs.artifact_name }}"
+            cp target/release/splitigsp "${{ steps.artifact.outputs.artifact_name }}"
           fi
 
       - name: Upload artifact (always)
@@ -78,7 +78,7 @@ jobs:
         id: release_info
         run: |
           echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          echo "name=Slitigs-SP ${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          echo "name=splitigsp ${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
